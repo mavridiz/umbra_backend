@@ -47,6 +47,7 @@ def get_protected_image(pre_imagen, phone_number):
     #################################################################
     if imagen is not None:
         B = 8
+        imagen = cv2.cvtColor(imagen, cv2.COLOR_BGR2RGB) 
         b, g, r = cv2.split(imagen)  # Dividir canales
         img1 = b  # Obtener canal azul de la imagen
         h, w = img1.shape  # Se obtiene el valor de las dimensiones
@@ -141,7 +142,7 @@ def get_phone_number(imagen):
     imagen1 = cv2.resize(imagen, dimen)
 
     b, g, r = cv2.split(imagen1)
-    imagen11 = cv2.merge([r, g, b])
+
 
     imgmarca0 = b
     h = imgmarca0.shape[0]
@@ -221,3 +222,97 @@ def get_phone_number(imagen):
    # remove("marca_rec.png")
 
     return complete_number
+
+def extract_watermark(filename_imagenentrada):
+    imagen = cv2.imread(filename_imagenentrada)
+
+    B = 8
+    imgorigy = 1024
+    imgorigx = 1024
+
+    yi1 = int(imgorigy)
+    xi1 = int(imgorigx)
+    dimen = (xi1, yi1)
+    imagen1 = cv2.resize(imagen, dimen)
+
+    b, _, _ = cv2.split(imagen1)
+
+    imgmarca0 = b
+    h = imgmarca0.shape[0]
+    w = imgmarca0.shape[1]
+    blocksV = h/B                   # Cantidad de bloques de 8x8 en Vertical
+    blocksH = w/B                   # Cantidad de bloques de 8x8 en Horizontal
+    blocksV = int(float(blocksV))   # Se convierte el valor flotante a entero
+    blocksH = int(float(blocksH))   # Se convierte el valor flotante a entero
+    vis02 = np.zeros((h, w), np.float32)
+    DatosPixelEstego = np.zeros((h, w), np.float32)
+    vis02[:h, :w] = imgmarca0
+    xx2 = 0
+
+    for row2 in range(blocksV):
+        for col2 in range(blocksH):
+            currentblock2 = cv2.dct(vis02[row2*B:(row2+1)*B, col2*B:(col2+1)*B])
+            DatosPixelEstego[row2*B:(row2+1)*B, col2*B:(col2+1)*B] = currentblock2
+
+    marcorigy = 150
+    marcorigx = 150
+
+    y1 = int(marcorigy)
+    x1 = int(marcorigx)
+    datosJ = y1*x1
+    datosJ5 = datosJ/5
+    datoszzmarca5 = []
+    numaunzz = 0
+
+    for zyy in range(blocksV):
+        for zzxx in range(blocksH):
+            dgzz = DatosPixelEstego[zyy*B:(zyy+1)*B, zzxx*B:(zzxx+1)*B]
+            datosgzz = dgzz.ravel()
+            if datosJ5 > numaunzz:
+                datoszigzagzz = [datosgzz[0], datosgzz[1], datosgzz[8], datosgzz[16], datosgzz[9], datosgzz[2], datosgzz[3], datosgzz[10], datosgzz[17], datosgzz[24], datosgzz[32], datosgzz[25], datosgzz[18], datosgzz[11], datosgzz[4], datosgzz[5], datosgzz[12], datosgzz[19], datosgzz[26], datosgzz[33], datosgzz[40], datosgzz[48], datosgzz[41], datosgzz[34], datosgzz[27], datosgzz[20], datosgzz[13], datosgzz[6], datosgzz[7], datosgzz[14], datosgzz[21], datosgzz[28],
+                                datosgzz[35], datosgzz[42], datosgzz[49], datosgzz[56], datosgzz[57], datosgzz[50], datosgzz[43], datosgzz[36], datosgzz[29], datosgzz[22], datosgzz[15], datosgzz[23], datosgzz[30], datosgzz[37], datosgzz[44], datosgzz[51], datosgzz[58], datosgzz[59], datosgzz[52], datosgzz[45], datosgzz[38], datosgzz[31], datosgzz[39], datosgzz[46], datosgzz[53], datosgzz[60], datosgzz[61], datosgzz[54], datosgzz[47], datosgzz[55], datosgzz[62], datosgzz[63]]
+
+                datoszzmarca = [datoszigzagzz[30], datoszigzagzz[31],
+                                datoszigzagzz[32], datoszigzagzz[33], datoszigzagzz[34]]
+                datoszzmarca5.append(np.array(datoszzmarca))
+                numaunzz = numaunzz+1
+
+    datosgMRE = np.concatenate([datoszzmarca5])
+    datosgMRE2 = datosgMRE.ravel()
+    datosgMRE2 = datosgMRE2.reshape(y1, x1)
+
+    _, dst2 = cv2.threshold(datosgMRE2, 3, 250, cv2.THRESH_BINARY)
+
+    filename_marcarec = "marca_rec.png"
+
+    cv2.imwrite(filename_marcarec, dst2)
+    cv2.destroyAllWindows()
+    #########################################################################################################################
+
+    image = Image.open("marca_rec.png")
+    image = image.convert('RGB')
+
+    def get_number(column):
+        numeros = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]    
+
+        for i in range(10):
+            for y in range(15):
+                y += (i*15)
+                for x in range(15):
+                    x += (column*15)
+                    r, g, b = image.getpixel((x, y))
+                    if (r > 245 and g  > 245 and b > 245):
+                        numeros[i] += 1
+
+        number = str(numeros.index(max(numeros)))
+        return number
+
+    complete_number = ""
+
+    for i in range(10):
+        complete_number += get_number(i)
+
+    remove("marca_rec.png")
+
+    return(complete_number)
+

@@ -29,13 +29,12 @@ import io
 import numpy as np
 import cv2
 import re
-from .utils import get_protected_image, get_phone_number
+from .utils import get_protected_image, extract_watermark
 
 import threading
 import base64
 
-from email.message import EmailMessage
-import smtplib
+import os
 
 import datetime
 
@@ -129,7 +128,7 @@ class ProtectImageAPI(APIView):
 
         decoded_data = base64.b64decode(file_base64)
         np_data = np.fromstring(decoded_data, np.uint8)
-        imagen = cv2.imdecode(np_data, cv2.IMREAD_UNCHANGED)
+        imagen = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
 
         protected_image = get_protected_image(imagen, phone_number)
 
@@ -152,11 +151,21 @@ class GetImageMarkAPI(APIView):
         file_base64 = request.data['base64']
         file_base64 = re.sub(r'^.*?base64,', '', file_base64)
 
-        decoded_data = base64.b64decode(file_base64)
-        np_data = np.fromstring(decoded_data, np.uint8)
-        imagen = cv2.imdecode(np_data, cv2.IMREAD_UNCHANGED)
 
-        phone_number = get_phone_number(imagen)
+        # Decodificar la imagen base64
+        image_data = base64.b64decode(file_base64)
+
+        # Crear un objeto BytesIO para trabajar con los datos de la imagen
+        image_stream = io.BytesIO(image_data)
+
+        # Abrir la imagen utilizando la biblioteca PIL
+        image = Image.open(image_stream)
+
+        # Guardar la imagen como archivo PNG
+        filename = "imagen.png"
+        image.save(filename, "PNG")
+        phone_number = extract_watermark(filename)
+        os.remove(filename)
 
         response = Response({"phone_number": phone_number})
         response["Access-Control-Allow-Origin"] = "*"
